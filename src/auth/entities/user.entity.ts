@@ -1,51 +1,51 @@
 import { Product } from "src/products/entities/product.entity";
 import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 
-
-
- @Entity('users')
- export class User {
+@Entity('users')
+export class User {
     
     @PrimaryGeneratedColumn('uuid')
     id: string;
     
-    @Column('text',
-        {
-            unique: true
-        })
+
+    @Column('text', { unique: true })
     email: string;
 
-    @Column('text',{
-        select: false
-    })
+    @Column('text', { select: false })
     password: string;
 
-    @Column('text',
-        {
-            unique: true
-        })
+    @Column('text', { unique: true })
     fullName: string;
 
-    @Column('bool',{
-        default: true
-    })
+  
+    @Column('bool', { default: false })
+    isEmailVerified: boolean;
+
+    @Column('text', { nullable: true })
+    emailVerificationCode: string | null;
+
+    @Column('timestamptz', { nullable: true })
+    emailVerificationExpiresAt: Date | null;
+
+    @Column('timestamptz', { nullable: true })
+    lastLoginAt: Date | null;
+ 
+    @Column('bool', { default: true })
     isActive: boolean;
 
-    @Column('text',{
-        array: true,
-        default:['user']
-    })
+    @Column('text', { array: true, default:['user'] })
     roles: string[];
 
+ 
     @OneToMany(
         () => Product,
         (product) => product.user
     )
-    products: Product[]
+    products: Product[];
 
     @BeforeInsert()
     checkFieldsBeforeInsert() {
-        this.email = this.email.toLocaleLowerCase().trim();
+        this.email = this.email.toLowerCase().trim();
     }
 
     @BeforeUpdate()

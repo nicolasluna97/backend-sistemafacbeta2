@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateUserDto, LoginUserDto } from './dto';
+import { CreateUserDto, LoginUserDto, VerifyEmailDto, ResendVerificationCodeDto } from './dto';
 import { AuthGuard } from '@nestjs/passport';
 import { Auth, GetUser, RawHeaders, RoleProtected } from './decorators';
 import { User } from './entities/user.entity';
@@ -27,6 +27,16 @@ export class AuthController {
   @Post('refresh')
   refreshToken(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshToken(refreshToken);
+  }
+    
+ @Post('verify-email')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmail(dto);
+  }
+
+  @Post('resend-code')
+  resendCode(@Body() dto: ResendVerificationCodeDto) {
+    return this.authService.resendVerificationCode(dto);
   }
 
   // SOLO UN testingPrivateRoute - Eliminé el duplicado
