@@ -149,27 +149,62 @@ export class AuthService {
 
   //  REENVIAR CÓDIGO de verificación
   
-  async resendVerificationCode(dto: ResendVerificationCodeDto) {
-    const { email } = dto;
+ // auth.service.ts (backend)
 
-    const user = await this.userRepository.findOne({
-      where: { email },
-    });
+async resendVerificationCode(dto: ResendVerificationCodeDto) {
+  const { email } = dto;
 
-    if (!user) {
-      throw new BadRequestException('Usuario no encontrado');
+  const user = await this.userRepository.findOne({
+    where: { email },
+  });
+
+  if (!user) {
+    throw new BadRequestException('Usuario no encontrado');
+  }
+
+  if (user.isEmailVerified) {
+    throw new BadRequestException('El email ya está verificado');
+  }
+
+  const now = new Date();
+
+  // 1) Si pasó más de 24h desde el último envío, reseteamos el contador
+  if (user.lastVerificationEmailSentAt) {
+    const diffMs = now.getTime() - user.lastVerificationEmailSentAt.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+
+    if (diffHours >= 24) {
+      user.verificationEmailResendCount = 0;
+      await this.userRepository.save(user);
     }
+  }
 
-    if (user.isEmailVerified) {
-      throw new BadRequestException('El email ya está verificado');
+  // 2) Máximo 3 reenvíos dentro de una ventana de 24h
+  if (user.verificationEmailResendCount >= 3) {
+    throw new BadRequestException(
+      'Has alcanzado el número máximo de reenvíos de código. Intenta nuevamente en 24 horas.',
+    );
+  }
+
+  // 3) Limitar a cada 30 segundos
+  if (user.lastVerificationEmailSentAt) {
+    const diffMs = now.getTime() - user.lastVerificationEmailSentAt.getTime();
+    const diffSeconds = diffMs / 1000;
+
+    if (diffSeconds < 30) {
+      throw new BadRequestException(
+        `Debes esperar ${Math.ceil(30 - diffSeconds)} segundos antes de solicitar un nuevo código.`,
+      );
     }
+  }
 
-    await this.generateAndSaveVerificationCode(user);
+  // 4) Generar nuevo código y aumentar contador
+  await this.generateAndSaveVerificationCode(user, { incrementResendCount: true });
 
-    return {
-      ok: true,
-      message: 'Se envió un nuevo código de verificación al email.',
-    };
+  return {
+    ok: true,
+    message: 'Se envió un nuevo código de verificación al email.',
+  };
   }
 
 
@@ -209,21 +244,31 @@ export class AuthService {
 
 
   // Generar y guardar código + enviar email
-  private async generateAndSaveVerificationCode(user: User) {
-    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 dígitos
+  private async generateAndSaveVerificationCode(
+  user: User,
+  options?: { incrementResendCount?: boolean },
+  ) {
+  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 dígitos
 
-    const hashed = bcrypt.hashSync(code, 10);
+  const hashed = bcrypt.hashSync(code, 10);
+  user.emailVerificationCode = hashed;
 
-    user.emailVerificationCode = hashed;
+  const now = new Date();
 
-    const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + 15); // 15 minutos
-    user.emailVerificationExpiresAt = expires;
+  const expires = new Date(now.getTime());
+  expires.setMinutes(expires.getMinutes() + 15); // 15 minutos
 
-    await this.userRepository.save(user);
+  user.emailVerificationExpiresAt = expires;
+  user.lastVerificationEmailSentAt = now;
 
-    await this.emailService.sendVerificationCode(user.email, code);
+  if (options?.incrementResendCount) {
+    user.verificationEmailResendCount = (user.verificationEmailResendCount ?? 0) + 1;
   }
+
+  await this.userRepository.save(user);
+
+  await this.emailService.sendVerificationCode(user.email, code);
+}
 
   private getJwtToken(payload: JwtPayload) {
     // Token de acceso (2 horas)

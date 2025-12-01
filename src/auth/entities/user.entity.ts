@@ -36,7 +36,12 @@ export class User {
     @Column('text', { array: true, default:['user'] })
     roles: string[];
 
- 
+    @Column('timestamptz', { nullable: true })
+    lastVerificationEmailSentAt: Date | null;
+
+    @Column('int', { default: 0 })
+    verificationEmailResendCount: number;
+
     @OneToMany(
         () => Product,
         (product) => product.user
