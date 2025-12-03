@@ -1,35 +1,46 @@
-import { IsInt, IsNumber, IsOptional, IsPositive, IsString, MinLength } from "class-validator";
+// src/products/dto/create-product.dto.ts
+import {
+  IsInt,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateProductDto {
+  @IsString()
+  @MinLength(1)
+  title: string;
 
-    @IsString()
-    @MinLength(1)
-    title: string;
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  stock?: number;
 
-    @IsInt()
-    @IsPositive()
-    @IsOptional()
-    stock: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  price?: number;
 
-    @IsNumber()
-    @IsPositive()
-    @IsOptional()
-    price: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  price2?: number;
 
-    @IsNumber()
-    @IsPositive()
-    @IsOptional()
-    price2: number;
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  price3?: number;
 
-    @IsNumber()
-    @IsPositive()
-    @IsOptional()
-    price3: number;
-
-    @IsNumber()
-    @IsPositive()
-    @IsOptional()
-    price4: number;
-
-
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  price4?: number;
 }
