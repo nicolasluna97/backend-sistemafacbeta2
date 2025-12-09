@@ -146,6 +146,18 @@ export class AuthService {
     };
   }
 
+    async findUserById(id: string) {
+    return this.userRepository.findOne({
+      where: { id },
+    });
+  }
+
+  async updateUser(id: string, data: Partial<User>) {
+    await this.userRepository.update(id, data);
+    return this.findUserById(id);
+  }
+
+
 
   //  REENVIAR CÓDIGO de verificación
   
