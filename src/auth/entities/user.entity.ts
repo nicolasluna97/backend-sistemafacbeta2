@@ -1,61 +1,66 @@
-import { Product } from "src/products/entities/product.entity";
-import { BeforeInsert, BeforeUpdate, Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
+import { Product } from 'src/products/entities/product.entity';
+import { Customer } from 'src/customers/entities/customer.entity';
+import {
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('users')
 export class User {
-    
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
-    
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @Column('text', { unique: true })
-    email: string;
+  @Column('text', { unique: true })
+  email: string;
 
-    @Column('text', { select: false })
-    password: string;
+  @Column('text', { select: false })
+  password: string;
 
-    @Column('text', { unique: true })
-    fullName: string;
+  @Column('varchar', { unique: true, length: 20 })
+  fullName: string;
 
-  
-    @Column('bool', { default: false })
-    isEmailVerified: boolean;
+  @Column('bool', { default: false })
+  isEmailVerified: boolean;
 
-    @Column('text', { nullable: true })
-    emailVerificationCode: string | null;
+  @Column('text', { nullable: true })
+  emailVerificationCode: string | null;
 
-    @Column('timestamptz', { nullable: true })
-    emailVerificationExpiresAt: Date | null;
+  @Column('timestamptz', { nullable: true })
+  emailVerificationExpiresAt: Date | null;
 
-    @Column('timestamptz', { nullable: true })
-    lastLoginAt: Date | null;
- 
-    @Column('bool', { default: true })
-    isActive: boolean;
+  @Column('timestamptz', { nullable: true })
+  lastLoginAt: Date | null;
 
-    @Column('text', { array: true, default:['user'] })
-    roles: string[];
+  @Column('bool', { default: true })
+  isActive: boolean;
 
-    @Column('timestamptz', { nullable: true })
-    lastVerificationEmailSentAt: Date | null;
+  @Column('text', { array: true, default: ['user'] })
+  roles: string[];
 
-    @Column('int', { default: 0 })
-    verificationEmailResendCount: number;
+  @Column('timestamptz', { nullable: true })
+  lastVerificationEmailSentAt: Date | null;
 
-    @OneToMany(
-        () => Product,
-        (product) => product.user
-    )
-    products: Product[];
+  @Column('int', { default: 0 })
+  verificationEmailResendCount: number;
 
-    @BeforeInsert()
-    checkFieldsBeforeInsert() {
-        this.email = this.email.toLowerCase().trim();
-    }
+  @OneToMany(() => Product, product => product.user)
+  products: Product[];
 
-    @BeforeUpdate()
-    checkFieldsBeforeUpdate() {
-        this.checkFieldsBeforeInsert();
-    }
+  // NUEVA RELACIÓN CON CLIENTES
+  @OneToMany(() => Customer, customer => customer.user)
+  customers: Customer[];
 
+  @BeforeInsert()
+  checkFieldsBeforeInsert() {
+    this.email = this.email.toLowerCase().trim();
+  }
+
+  @BeforeUpdate()
+  checkFieldsBeforeUpdate() {
+    this.checkFieldsBeforeInsert();
+  }
 }

@@ -16,6 +16,6 @@ export class CreateUserDto {
 
     @IsString()
     @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
-    @MaxLength(80, { message: 'El nombre no puede tener más de 80 caracteres' })
+    @MaxLength(20, { message: 'El nombre no puede tener más de 20 caracteres' })
     fullName: string;
 }

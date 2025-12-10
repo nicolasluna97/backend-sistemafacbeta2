@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { AccountModule } from './account/account.module';
+import { CustomersModule } from './customers/customers.module';
 
 @Module({
   imports: [
@@ -31,7 +32,8 @@ import { AccountModule } from './account/account.module';
     ProductsModule,
     CommonModule,
     AuthModule,
-    AccountModule
+    AccountModule,
+    CustomersModule
   ],
   providers: [
     {
