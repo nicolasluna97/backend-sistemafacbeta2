@@ -1,7 +1,7 @@
-import { IsInt, IsString, IsUUID, Min, IsIn, IsNumber } from 'class-validator';
+import { IsInt, IsUUID, IsString, Min, IsIn, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class DecreaseStockWithMovementDto {
+export class DecreaseStockMovementDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -23,3 +23,4 @@ export class DecreaseStockWithMovementDto {
   @IsIn([1, 2, 3, 4])
   priceKey: 1 | 2 | 3 | 4;
 }
+

@@ -18,11 +18,10 @@ import { PaginationDto } from 'src/common/dtos/pagination.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { GetUser } from '../auth/decorators';
 import { User } from '../auth/entities/user.entity';
-import { DecreaseStockDto } from './dto/decrease-stock.dto';
-import { DecreaseStockWithMovementDto } from './dto/decrease-stock-movement.dto';
+import { DecreaseStockMovementDto } from './dto/decrease-stock-movement.dto';
 
 @Controller('products')
-@UseGuards(AuthGuard()) // Proteger todas las rutas de productos
+@UseGuards(AuthGuard())
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
@@ -33,24 +32,18 @@ export class ProductsController {
 
   @Get()
   @SkipThrottle()
-  findAll(
-    @Query() paginationDto: PaginationDto,
-    @GetUser() user: User
-  ) {
+  findAll(@Query() paginationDto: PaginationDto, @GetUser() user: User) {
     return this.productsService.findAll(paginationDto, user);
   }
 
   @Get(':term')
   @SkipThrottle()
-  findOne(
-    @Param('term') term: string,
-    @GetUser() user: User
-  ) {
+  findOne(@Param('term') term: string, @GetUser() user: User) {
     return this.productsService.findOne(term, user);
   }
 
   @Patch(':id')
-    update(
+  update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateProductDto: UpdateProductDto,
     @GetUser() user: User,
@@ -61,10 +54,10 @@ export class ProductsController {
   @Patch(':id/decrease-stock')
   decreaseStock(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: DecreaseStockWithMovementDto,
+    @Body() dto: DecreaseStockMovementDto,
     @GetUser() user: User,
   ) {
-    return this.productsService.decreaseStock(id, dto.quantity, user);
+    return this.productsService.decreaseStock(id, dto, user);
   }
 
   @Delete(':id')
