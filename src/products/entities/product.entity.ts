@@ -17,6 +17,9 @@ export class Product {
         })
         stock: number;
 
+    @Column('numeric', { default: 0 })
+        purchasePrice: number;
+
     @Column('numeric', {
         default: 0
         })
