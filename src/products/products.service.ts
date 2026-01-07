@@ -133,6 +133,7 @@ export class ProductsService {
         quantity,
         unitPrice,
         priceKey,
+        purchasePriceAtSale: Number(product.purchasePrice ?? 0),
         status: null,
         employee: null,
       });

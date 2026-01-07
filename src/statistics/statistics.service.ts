@@ -11,60 +11,72 @@ export class StatisticsService {
     private readonly movementRepo: Repository<Movement>,
   ) {}
 
-  async getStatistics(userId: string, dto: GetStatisticsDto) {
-    const mode = dto.mode as StatsMode;
-    const anchor = dto.anchor;
+async getStatistics(userId: string, dto: GetStatisticsDto) {
+  const mode = dto.mode as StatsMode;
+  const anchor = dto.anchor;
 
-    // tzOffset: minutos como devuelve el navegador (getTimezoneOffset)
-    // Ej: Argentina (UTC-3) => 180
-    const tzOffset = this.normalizeTzOffset(dto.tzOffset);
+  const tzOffset = this.normalizeTzOffset(dto.tzOffset);
 
-    if (!mode || !anchor) {
-      throw new BadRequestException('Parámetros inválidos');
-    }
-
-    const { startUtc, endUtc, labels } = this.buildRangeUtc(mode, anchor, tzOffset);
-
-    // Traemos movimientos del usuario en el rango UTC
-    const movements = await this.movementRepo
-      .createQueryBuilder('m')
-      .where('m."userId" = :userId', { userId })
-      .andWhere('m."createdAt" >= :start', { start: startUtc.toISOString() })
-      .andWhere('m."createdAt" < :end', { end: endUtc.toISOString() })
-      .orderBy('m."createdAt"', 'ASC')
-      .getMany();
-
-    const values = new Array(labels.length).fill(0);
-
-    let totalAmount = 0;
-    let totalSales = 0;
-
-    for (const m of movements) {
-      const qty = Number(m.quantity ?? 0);
-      const unit = Number((m.unitPrice as any) ?? 0); // numeric puede venir string
-      const amount = unit * qty;
-
-      totalAmount += amount;
-      totalSales += 1;
-
-      const idx = this.bucketIndex(mode, m.createdAt, startUtc, tzOffset);
-      if (idx >= 0 && idx < values.length) values[idx] += amount;
-    }
-
-    totalAmount = Math.round(totalAmount);
-    const roundedValues = values.map(v => Math.round(v));
-
-    return {
-      labels,
-      values: roundedValues,
-      totalAmount,
-      totalSales,
-    };
+  if (!mode || !anchor) {
+    throw new BadRequestException('Parámetros inválidos');
   }
 
-  // =========================
+  const { startUtc, endUtc, labels } = this.buildRangeUtc(mode, anchor, tzOffset);
+
+  const movements = await this.movementRepo
+    .createQueryBuilder('m')
+    .where('m."userId" = :userId', { userId })
+    .andWhere('m."createdAt" >= :start', { start: startUtc.toISOString() })
+    .andWhere('m."createdAt" < :end', { end: endUtc.toISOString() })
+    .orderBy('m."createdAt"', 'ASC')
+    .getMany();
+
+  const values = new Array(labels.length).fill(0);
+
+  let totalAmount = 0;
+  let totalSales = 0;
+  let totalProfit = 0;
+  let totalProducts = 0;
+
+  for (const m of movements) {
+    // qty seguro
+    const qty = Number(m.quantity ?? 0);
+    const safeQty = Number.isFinite(qty) && qty > 0 ? qty : 0;
+
+    // numeric puede venir como string
+    const unit = Number((m.unitPrice as any) ?? 0);
+    const buy = Number((m.purchasePriceAtSale as any) ?? 0);
+
+    const amount = unit * safeQty;
+    const profit = (unit - buy) * safeQty;
+
+    totalAmount += amount;
+    totalProfit += profit;
+    totalSales += 1;
+    totalProducts += safeQty;
+
+    const idx = this.bucketIndex(mode, m.createdAt, startUtc, tzOffset);
+    if (idx >= 0 && idx < values.length) values[idx] += amount;
+  }
+
+  totalAmount = Math.round(totalAmount);
+  totalProfit = Math.round(totalProfit);
+  totalProducts = Math.round(totalProducts);
+
+  const roundedValues = values.map(v => Math.round(v));
+
+  return {
+    labels,
+    values: roundedValues,
+    totalAmount,
+    totalSales,
+    totalProfit,
+    totalProducts, // ✅ ACÁ
+  };
+
+  }
+
   // Helpers (timezone seguro)
-  // =========================
 
   private normalizeTzOffset(input?: number): number {
     // Si no viene, asumimos 0 (UTC)
@@ -83,15 +95,6 @@ export class StatisticsService {
     return input;
   }
 
-  /**
-   * Convierte "fecha local del usuario" (anchor) a rango UTC.
-   *
-   * Regla clave:
-   * - tzOffset viene de JS: local = UTC - tzOffset(min)
-   * - Entonces: UTC = local + tzOffset(min)
-   *
-   * Ej AR: tzOffset=180, local 2025-12-22 00:00 => UTC 2025-12-22 03:00Z
-   */
   private buildRangeUtc(mode: StatsMode, anchor: string, tzOffset: number) {
     if (mode === 'day') {
       // anchor: YYYY-MM-DD
@@ -127,14 +130,12 @@ export class StatisticsService {
     }
 
     if (mode === 'month') {
-      // anchor: YYYY-MM
+
       const [yy, mm] = anchor.split('-').map(Number);
       if (!yy || !mm) throw new BadRequestException('Anchor inválido para mes');
-
-      // start: día 1 del mes a las 00:00 local => UTC
+      
       const startUtc = this.localMidnightToUtc(yy, mm, 1, tzOffset);
 
-      // end: primer día del mes siguiente a las 00:00 local => UTC
       const nextMonth = mm === 12 ? { y: yy + 1, m: 1 } : { y: yy, m: mm + 1 };
       const endUtc = this.localMidnightToUtc(nextMonth.y, nextMonth.m, 1, tzOffset);
 
@@ -155,19 +156,13 @@ export class StatisticsService {
     return { startUtc, endUtc, labels };
   }
 
-  /**
-   * Devuelve índice de barra usando "hora/día/mes local del usuario".
-   * Para que sea estable en cualquier servidor, usamos UTC getters
-   * sobre un Date ya “shifteado” al reloj local.
-   */
   private bucketIndex(mode: StatsMode, createdAt: Date, startUtc: Date, tzOffset: number) {
-    // Pasamos el instante UTC a “reloj local del usuario” en ms:
-    // local = UTC - tzOffset
+
     const localMs = new Date(createdAt).getTime() - tzOffset * 60 * 1000;
     const local = new Date(localMs);
 
     if (mode === 'day') {
-      return local.getUTCHours(); // 0..23 (hora local del usuario)
+      return local.getUTCHours(); 
     }
 
     if (mode === 'week') {
@@ -193,15 +188,11 @@ export class StatisticsService {
     return { y: yy, m: mm, d: dd };
   }
 
-  /**
-   * Devuelve el Date UTC que representa "00:00 local" de esa fecha.
-   * month: 1..12
-   */
+
   private localMidnightToUtc(year: number, month: number, day: number, tzOffset: number) {
     // base: UTC midnight de la fecha (si fuese UTC)
     const utcMidnight = Date.UTC(year, month - 1, day, 0, 0, 0);
-    // pero queremos el instante UTC correspondiente a las 00:00 local:
-    // UTC = local + tzOffset
+  
     return new Date(utcMidnight + tzOffset * 60 * 1000);
   }
 }

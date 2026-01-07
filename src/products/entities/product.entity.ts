@@ -51,10 +51,9 @@ export class Product {
     @Column('uuid')
     userId: string;
 
-        @BeforeInsert()
-        checkSlugInsert() {
+    @BeforeInsert()
+    checkSlugInsert() {
             
-        }
+    }
 
-        
 }

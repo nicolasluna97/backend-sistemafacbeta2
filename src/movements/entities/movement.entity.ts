@@ -35,7 +35,9 @@ export class Movement {
   @Column('text', { nullable: true })
   employee: string | null;
 
-  // CLAVE:
+  @Column('numeric', { default: 0 })
+  purchasePriceAtSale: number;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 }
