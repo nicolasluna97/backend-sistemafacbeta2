@@ -14,11 +14,11 @@ import { PaginationDto } from '../common/dtos/pagination.dto';
 import { isUUID } from 'class-validator';
 import { User } from '../auth/entities/user.entity';
 
-// DTO correcto (el que trae customerId/customerName/unitPrice/priceKey)
 import { DecreaseStockMovementDto } from './dto/decrease-stock-movement.dto';
-
-// Entity de movimientos
 import { Movement } from 'src/movements/entities/movement.entity';
+
+// NUEVO
+import { Category } from 'src/categories/entities/category.entity';
 
 @Injectable()
 export class ProductsService {
@@ -27,17 +27,54 @@ export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+
+    // NUEVO
+    @InjectRepository(Category)
+    private readonly categoryRepository: Repository<Category>,
   ) {}
+
+  // ===== Helpers Category =====
+
+  private async assertCategoryBelongsToUser(categoryId: string, userId: string): Promise<Category> {
+    if (!isUUID(categoryId)) {
+      throw new BadRequestException('categoryId inválido.');
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId, userId },
+    });
+
+    if (!category) {
+      throw new BadRequestException('La categoría seleccionada no existe o no te pertenece.');
+    }
+
+    return category;
+  }
+
+  // ===== CRUD =====
 
   async create(createProductDto: CreateProductDto, user: User) {
     try {
+      // 1) Validar categoría obligatoria
+      const category = await this.assertCategoryBelongsToUser(
+        createProductDto.categoryId,
+        user.id,
+      );
+
+      // 2) Crear producto
       const product = this.productRepository.create({
         ...createProductDto,
+
+        // Importante: que quede seteada la relación y el FK
+        category,
+        categoryId: category.id,
+
         user,
         userId: user.id,
       });
 
       await this.productRepository.save(product);
+
       return product;
     } catch (error) {
       this.handleDBExceptions(error);
@@ -51,7 +88,8 @@ export class ProductsService {
       where: { userId: user.id },
       take: limit,
       skip: offset,
-      relations: ['user'],
+      relations: ['user', 'category'], // RECOMENDADO: así el front puede mostrar nombre de categoría
+      order: { title: 'ASC' },
     });
   }
 
@@ -59,6 +97,7 @@ export class ProductsService {
     if (isUUID(term)) {
       const product = await this.productRepository.findOne({
         where: { id: term, userId: user.id },
+        relations: ['category'], // RECOMENDADO
       });
 
       if (!product) {
@@ -73,6 +112,7 @@ export class ProductsService {
       .andWhere('UPPER(prod.title) LIKE :title', {
         title: `%${term.toUpperCase()}%`,
       })
+      .leftJoinAndSelect('prod.category', 'category') // RECOMENDADO
       .getMany();
 
     if (products.length === 0) {
@@ -84,12 +124,26 @@ export class ProductsService {
 
   async update(id: string, updateProductDto: UpdateProductDto, user: User) {
     const product = await this.findProductByIdAndUser(id, user);
+
+    // Si viene categoryId, validarlo
+    if (updateProductDto.categoryId !== undefined) {
+      const category = await this.assertCategoryBelongsToUser(updateProductDto.categoryId, user.id);
+      product.category = category;
+      product.categoryId = category.id;
+    }
+
+    // Merge del resto
     const updatedProduct = this.productRepository.merge(product, updateProductDto);
-    return await this.productRepository.save(updatedProduct);
+
+    try {
+      return await this.productRepository.save(updatedProduct);
+    } catch (error) {
+      this.handleDBExceptions(error);
+    }
   }
 
   /**
-   * Descuenta stock + registra Movement de forma atómica (misma transacción).
+   * decreaseStock: ya lo tenés bien; no cambia por categorías.
    */
   async decreaseStock(id: string, dto: DecreaseStockMovementDto, user: User) {
     const { quantity, customerId, customerName, unitPrice, priceKey } = dto;
@@ -119,11 +173,9 @@ export class ProductsService {
         );
       }
 
-      // 1) Descontar stock
       product.stock = product.stock - quantity;
       await prodRepo.save(product);
 
-      // 2) Registrar movimiento
       const movement = movRepo.create({
         userId: user.id,
         customerId,
@@ -133,7 +185,7 @@ export class ProductsService {
         quantity,
         unitPrice,
         priceKey,
-        purchasePriceAtSale: Number(product.purchasePrice ?? 0),
+        purchasePriceAtSale: Number((product.purchasePrice as any) ?? 0),
         status: null,
         employee: null,
       });
@@ -165,6 +217,7 @@ export class ProductsService {
   }
 
   private handleDBExceptions(error: any) {
+   
     if (error.code === '23505') throw new BadRequestException(error.detail);
 
     this.logger.error(error);
