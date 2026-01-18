@@ -10,6 +10,7 @@ import { AccountModule } from './account/account.module';
 import { CustomersModule } from './customers/customers.module';
 import { MovementsModule } from './movements/movements.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { StatisticsModule } from './statistics/statistics.module';
     AccountModule,
     CustomersModule,
     MovementsModule,
-    StatisticsModule
+    StatisticsModule,
+    CategoriesModule
   ],
   providers: [
     {

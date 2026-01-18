@@ -1,9 +1,10 @@
-// categories.controller.ts
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { GetUser } from '../auth/decorators';
+import { User } from '../auth/entities/user.entity';
 
 @Controller('categories')
 @UseGuards(AuthGuard())
@@ -11,22 +12,26 @@ export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   @Post()
-  create(@Req() req: any, @Body() dto: CreateCategoryDto) {
-    return this.categoriesService.create(dto, req.user);
+  create(@Body() dto: CreateCategoryDto, @GetUser() user: User) {
+    return this.categoriesService.create(dto, user);
   }
 
   @Get()
-  findAll(@Req() req: any) {
-    return this.categoriesService.findAll(req.user);
+  findAll(@GetUser() user: User) {
+    return this.categoriesService.findAll(user);
   }
 
   @Patch(':id')
-  update(@Req() req: any, @Param('id') id: string, @Body() dto: UpdateCategoryDto) {
-    return this.categoriesService.update(id, dto, req.user);
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCategoryDto,
+    @GetUser() user: User,
+  ) {
+    return this.categoriesService.update(id, dto, user);
   }
 
   @Delete(':id')
-  remove(@Req() req: any, @Param('id') id: string) {
-    return this.categoriesService.remove(id, req.user);
+  remove(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: User) {
+    return this.categoriesService.remove(id, user);
   }
 }
