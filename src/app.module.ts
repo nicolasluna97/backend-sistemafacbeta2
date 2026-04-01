@@ -11,10 +11,13 @@ import { CustomersModule } from './customers/customers.module';
 import { MovementsModule } from './movements/movements.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { CategoriesModule } from './categories/categories.module';
+import { AiHelpModule } from './ai-help/ai-help.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+    isGlobal: true,
+    }),
 
     ThrottlerModule.forRoot([{
       ttl: 60, // 60 segundos
@@ -29,7 +32,7 @@ import { CategoriesModule } from './categories/categories.module';
       username: process.env.DB_USERNAME,
       password: process.env.DB_PASSWORD,
       autoLoadEntities: true,
-      synchronize: true,
+      synchronize: false,
     }),
 
     ProductsModule,
@@ -39,7 +42,8 @@ import { CategoriesModule } from './categories/categories.module';
     CustomersModule,
     MovementsModule,
     StatisticsModule,
-    CategoriesModule
+    CategoriesModule,
+    AiHelpModule,
   ],
   providers: [
     {

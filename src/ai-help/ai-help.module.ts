@@ -1,0 +1,36 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AiHelpController } from './controllers/ai-help.controller';
+import { KnowledgeDocument } from './entities/knowledge-document.entity';
+import { KnowledgeChunk } from './entities/knowledge-chunk.entity';
+import { KnowledgeIngestionService } from './services/knowledge-ingestion.service';
+import { KnowledgeQueryService } from './services/knowledge-query.service';
+import { EmbeddingsService } from './services/embeddings.service';
+import { KnowledgeEmbeddingService } from './services/knowledge-embedding.service';
+import { VectorSearchService } from './services/vector-search.service';
+import { HelpChatService } from './services/help-chat.service';
+
+@Module({
+  imports: [
+    ConfigModule,
+    TypeOrmModule.forFeature([KnowledgeDocument, KnowledgeChunk]),
+  ],
+  controllers: [AiHelpController],
+  providers: [
+    KnowledgeIngestionService,
+    KnowledgeQueryService,
+    EmbeddingsService,
+    KnowledgeEmbeddingService,
+    VectorSearchService,
+    HelpChatService
+  ],
+  exports: [
+    KnowledgeIngestionService,
+    KnowledgeQueryService,
+    EmbeddingsService,
+    KnowledgeEmbeddingService,
+    VectorSearchService,
+  ],
+})
+export class AiHelpModule {}

@@ -1,8 +1,6 @@
-version: '28.3.2'
-
 services:
   db:
-    image: postgres:14.3
+    image: pgvector/pgvector:pg14
     restart: always
     ports:
       - "5432:5432"
@@ -12,5 +10,3 @@ services:
     container_name: SistemaNuevo2
     volumes:
       - ./postgres:/var/lib/postgresql/data
-
-
