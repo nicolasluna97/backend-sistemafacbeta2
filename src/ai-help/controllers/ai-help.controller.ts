@@ -1,10 +1,10 @@
-import { Controller, Get, Param, Post, Query, Body } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { AskHelpDto } from '../dto/ask-help.dto';
 import { KnowledgeIngestionService } from '../services/knowledge-ingestion.service';
 import { KnowledgeQueryService } from '../services/knowledge-query.service';
 import { KnowledgeEmbeddingService } from '../services/knowledge-embedding.service';
 import { VectorSearchService } from '../services/vector-search.service';
 import { HelpChatService } from '../services/help-chat.service';
-import { AskHelpDto } from '../dto/ask-help.dto';
 
 @Controller('ai-help')
 export class AiHelpController {
@@ -43,11 +43,11 @@ export class AiHelpController {
 
   @Get('search')
   async search(@Query('query') query: string) {
-  return this.vectorSearchService.searchSimilarChunks(query);
+    return this.vectorSearchService.searchSimilarChunks(query);
   }
- 
+
   @Post('chat')
   async chat(@Body() askHelpDto: AskHelpDto) {
     return this.helpChatService.ask(askHelpDto.question);
-}
+  }
 }

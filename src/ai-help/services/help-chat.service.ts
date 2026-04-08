@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
+import { GoogleGenAI } from '@google/genai';
 import { VectorSearchService } from './vector-search.service';
 
 @Injectable()
@@ -75,34 +75,34 @@ export class HelpChatService {
     const context = chunks
       .map(
         (chunk, index) => `
-    [Fuente ${index + 1}]
-    Documento: ${chunk.documentTitle}
-    Sección: ${chunk.sectionTitle}
-    Contenido:
-    ${chunk.content}
-            `.trim(),
-          )
-          .join('\n\n');
+[Fuente ${index + 1}]
+Documento: ${chunk.documentTitle}
+Sección: ${chunk.sectionTitle}
+Contenido:
+${chunk.content}
+        `.trim(),
+      )
+      .join('\n\n');
 
-        const prompt = `
-    Sos un asistente de ayuda de una aplicación privada de facturación e inventario.
+    const prompt = `
+Sos un asistente de ayuda de una aplicación privada de facturación e inventario.
 
-    Tu tarea es responder únicamente usando el contexto provisto del manual interno.
+Tu tarea es responder únicamente usando el contexto provisto del manual interno.
 
-    Reglas:
-    - Respondé solo con la información del contexto.
-    - Si la respuesta no está en el contexto, decí claramente que no encontraste esa información en el manual.
-    - No inventes funcionalidades, botones, campos ni módulos.
-    - Respondé en español.
-    - Si corresponde, respondé con pasos claros y ordenados.
-    - Sé breve pero útil.
+Reglas:
+- Respondé solo con la información del contexto.
+- Si la respuesta no está en el contexto, decí claramente que no encontraste esa información en el manual.
+- No inventes funcionalidades, botones, campos ni módulos.
+- Respondé en español.
+- Si corresponde, respondé con pasos claros y ordenados.
+- Sé breve pero útil.
 
-    Pregunta del usuario:
-    ${question}
+Pregunta del usuario:
+${question}
 
-    Contexto:
-    ${context}
-        `;
+Contexto:
+${context}
+    `;
 
     const response = await this.ai.models.generateContent({
       model: 'gemini-2.5-flash',

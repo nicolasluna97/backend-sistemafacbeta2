@@ -4,12 +4,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiHelpController } from './controllers/ai-help.controller';
 import { KnowledgeDocument } from './entities/knowledge-document.entity';
 import { KnowledgeChunk } from './entities/knowledge-chunk.entity';
+import { EmbeddingsService } from './services/embeddings.service';
+import { HelpChatService } from './services/help-chat.service';
+import { KnowledgeEmbeddingService } from './services/knowledge-embedding.service';
 import { KnowledgeIngestionService } from './services/knowledge-ingestion.service';
 import { KnowledgeQueryService } from './services/knowledge-query.service';
-import { EmbeddingsService } from './services/embeddings.service';
-import { KnowledgeEmbeddingService } from './services/knowledge-embedding.service';
 import { VectorSearchService } from './services/vector-search.service';
-import { HelpChatService } from './services/help-chat.service';
 
 @Module({
   imports: [
@@ -23,7 +23,7 @@ import { HelpChatService } from './services/help-chat.service';
     EmbeddingsService,
     KnowledgeEmbeddingService,
     VectorSearchService,
-    HelpChatService
+    HelpChatService,
   ],
   exports: [
     KnowledgeIngestionService,
@@ -31,6 +31,7 @@ import { HelpChatService } from './services/help-chat.service';
     EmbeddingsService,
     KnowledgeEmbeddingService,
     VectorSearchService,
+    HelpChatService,
   ],
 })
 export class AiHelpModule {}
