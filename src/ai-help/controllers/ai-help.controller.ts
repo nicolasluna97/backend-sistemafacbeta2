@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AskHelpDto } from '../dto/ask-help.dto';
 import { KnowledgeIngestionService } from '../services/knowledge-ingestion.service';
 import { KnowledgeQueryService } from '../services/knowledge-query.service';
@@ -6,6 +7,7 @@ import { KnowledgeEmbeddingService } from '../services/knowledge-embedding.servi
 import { VectorSearchService } from '../services/vector-search.service';
 import { HelpChatService } from '../services/help-chat.service';
 
+@UseGuards(AuthGuard())
 @Controller('ai-help')
 export class AiHelpController {
   constructor(

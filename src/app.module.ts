@@ -19,10 +19,10 @@ import { AiHelpModule } from './ai-help/ai-help.module';
     isGlobal: true,
     }),
 
-    ThrottlerModule.forRoot([{
-      ttl: 60, // 60 segundos
-      limit: 120, // 120 intentos por minuto
-    }]),
+    ThrottlerModule.forRoot([
+      { ttl: 60, limit: 120 },    // Global rate limiting
+      { ttl: 900, limit: 3 }      // Login: 3 intentos cada 15 minutos
+    ]),
 
     TypeOrmModule.forRoot({
       type:'postgres',
@@ -48,8 +48,18 @@ import { AiHelpModule } from './ai-help/ai-help.module';
   providers: [
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard, // Aplica rate limiting global
+      useClass: ThrottlerGuard,
     },
   ],
 })
-export class AppModule {}
+export class AppModule {
+  constructor() {
+    // VALIDAR SECRETS EN INITIALIZATION
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error('JWT_SECRET debe tener mínimo 32 caracteres y estar configurado');
+    }
+    if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET.length < 32) {
+      throw new Error('JWT_REFRESH_SECRET debe tener mínimo 32 caracteres y estar configurado');
+    }
+  }
+}

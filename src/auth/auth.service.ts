@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
+import { randomBytes } from 'crypto';
 
 import { User } from './entities/user.entity';
 import {
@@ -71,11 +72,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Credenciales no válidas (email)');
+      throw new UnauthorizedException('Credenciales no válidas');
     }
 
     if (!bcrypt.compareSync(password, user.password)) {
-      throw new UnauthorizedException('Credenciales no válidas (password)');
+      throw new UnauthorizedException('Credenciales no válidas');
     }
 
     if (!user.isActive) {
@@ -161,7 +162,6 @@ export class AuthService {
 
   //  REENVIAR CÓDIGO de verificación
   
- // auth.service.ts (backend)
 
 async resendVerificationCode(dto: ResendVerificationCodeDto) {
   const { email } = dto;
@@ -225,7 +225,7 @@ async resendVerificationCode(dto: ResendVerificationCodeDto) {
   async refreshToken(oldRefreshToken: string) {
     try {
       const payload = this.jwtService.verify<JwtPayload>(oldRefreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+        secret: process.env.JWT_REFRESH_SECRET,
       });
 
       const user = await this.userRepository.findOne({
@@ -260,7 +260,8 @@ async resendVerificationCode(dto: ResendVerificationCodeDto) {
   user: User,
   options?: { incrementResendCount?: boolean },
   ) {
-  const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 dígitos
+  // PUNTO 6: Usar crypto seguro en lugar de Math.random()
+  const code = randomBytes(3).toString('hex').toUpperCase();
 
   const hashed = bcrypt.hashSync(code, 10);
   user.emailVerificationCode = hashed;
@@ -294,15 +295,16 @@ async resendVerificationCode(dto: ResendVerificationCodeDto) {
   private async getRefreshToken(payload: JwtPayload) {
     const refreshToken = this.jwtService.sign(payload, {
       expiresIn: '60d',
-      secret: process.env.JWT_REFRESH_SECRET || 'refresh-secret-key',
+      secret: process.env.JWT_REFRESH_SECRET,
     });
 
     return refreshToken;
   }
 
   private handleDBErrors(error: any): never {
+    // PUNTO 3: Sanitizar errores de BD - NO exponer detalles SQL
     if (error.code === '23505') {
-      throw new BadRequestException(error.detail);
+      throw new BadRequestException('Ya existe un registro con ese valor');
     }
 
     console.error(error);
