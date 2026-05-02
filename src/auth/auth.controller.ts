@@ -1,16 +1,62 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Req } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { CreateUserDto, LoginUserDto, VerifyEmailDto, ResendVerificationCodeDto } from './dto';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { Response, Request } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthGuard } from '@nestjs/passport';
+
+import { AuthService } from './auth.service';
+import {
+  CreateUserDto,
+  LoginUserDto,
+  VerifyEmailDto,
+  ResendVerificationCodeDto,
+} from './dto';
+
 import { Auth, GetUser, RawHeaders, RoleProtected } from './decorators';
 import { User } from './entities/user.entity';
 import { UserRoleGuard } from './guards/user-role.guard';
 import { ValidRoles } from './interfaces';
-import { Throttle } from '@nestjs/throttler';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  private setRefreshCookie(res: Response, refreshToken: string) {
+    const isProd = process.env.NODE_ENV === 'production';
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? 'strict' : 'lax',
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 dias
+      path: '/api/auth',
+    });
+  }
+
+  private clearRefreshCookie(res: Response) {
+    res.clearCookie('refresh_token', { path: '/api/auth' });
+  }
+
+  private extractCookieToken(req: Request): string | null {
+    const raw = req.headers.cookie;
+    if (!raw) return null;
+
+    const pieces = raw.split(';').map((p) => p.trim());
+    for (const piece of pieces) {
+      if (piece.startsWith('refresh_token=')) {
+        return decodeURIComponent(piece.substring('refresh_token='.length));
+      }
+    }
+    return null;
+  }
 
   @Post('register')
   createUser(@Body() createUserDto: CreateUserDto) {
@@ -18,20 +64,28 @@ export class AuthController {
   }
 
   @Post('login')
-  @Throttle({ default: { limit: 5, ttl: 60000 } }) // 5 intentos por 60 segundos
-  loginUser(@Body() loginUserDto: LoginUserDto) {
-    return this.authService.login(loginUserDto);
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async loginUser(
+    @Body() loginUserDto: LoginUserDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.authService.login(loginUserDto);
+    this.setRefreshCookie(res, data.refreshToken);
+
+    const { refreshToken, ...safePayload } = data;
+    return safePayload;
   }
 
-  // NUEVO ENDPOINT para refresh token
-  @Post('refresh')
-  refreshToken(@Body('refreshToken') refreshToken: string) {
-    return this.authService.refreshToken(refreshToken);
-  }
-    
- @Post('verify-email')
-  verifyEmail(@Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(dto);
+  @Post('verify-email')
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const data = await this.authService.verifyEmail(dto);
+    this.setRefreshCookie(res, data.refreshToken);
+
+    const { refreshToken, ...safePayload } = data;
+    return safePayload;
   }
 
   @Post('resend-code')
@@ -39,7 +93,33 @@ export class AuthController {
     return this.authService.resendVerificationCode(dto);
   }
 
-  // SOLO UN testingPrivateRoute - Eliminé el duplicado
+  @Post('refresh')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
+  async refreshToken(
+    @Req() req: Request,
+    @Body('refreshToken') refreshTokenFromBody?: string, // compatibilidad temporal
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    const cookieToken = this.extractCookieToken(req);
+    const oldRefreshToken = cookieToken ?? refreshTokenFromBody;
+
+    if (!oldRefreshToken) {
+      throw new UnauthorizedException('Refresh token requerido');
+    }
+
+    const data = await this.authService.refreshToken(oldRefreshToken);
+
+    if (res) this.setRefreshCookie(res, data.refreshToken);
+    const { refreshToken, ...safePayload } = data;
+    return safePayload;
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: Response) {
+    this.clearRefreshCookie(res);
+    return { ok: true };
+  }
+
   @Get('private')
   @UseGuards(AuthGuard())
   testingPrivateRoute(
@@ -47,36 +127,26 @@ export class AuthController {
     @GetUser() user: User,
     @GetUser('email') userEmail: string,
     @RawHeaders() rawHeaders: string[],
-  ){
+  ) {
     return {
       ok: true,
-      message: 'Bienvenido: ', 
+      message: 'Bienvenido',
       user,
       userEmail,
-      rawHeaders: rawHeaders.slice(0, 3) // Solo mostrar primeros 3 headers
-    }  
+      rawHeaders: rawHeaders.slice(0, 3),
+    };
   }
 
   @Get('private2')
   @RoleProtected(ValidRoles.superUser, ValidRoles.admin)
   @UseGuards(AuthGuard(), UserRoleGuard)
-  privateRoute2(
-    @GetUser() user: User
-  ) {
-    return {
-      ok: true,
-      user
-    }
+  privateRoute2(@GetUser() user: User) {
+    return { ok: true, user };
   }
 
   @Get('private3')
   @Auth(ValidRoles.userNoValid)
-  privateRoute3(
-    @GetUser() user: User
-  ) {
-    return {
-      ok: true,
-      user
-    }
+  privateRoute3(@GetUser() user: User) {
+    return { ok: true, user };
   }
 }

@@ -10,6 +10,7 @@ import { KnowledgeEmbeddingService } from './services/knowledge-embedding.servic
 import { KnowledgeIngestionService } from './services/knowledge-ingestion.service';
 import { KnowledgeQueryService } from './services/knowledge-query.service';
 import { VectorSearchService } from './services/vector-search.service';
+import { AiHelpAdminGuard } from './guards/ai-help-admin.guard';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { VectorSearchService } from './services/vector-search.service';
     KnowledgeEmbeddingService,
     VectorSearchService,
     HelpChatService,
+    AiHelpAdminGuard,
   ],
   exports: [
     KnowledgeIngestionService,

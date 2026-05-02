@@ -1,11 +1,26 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { Throttle } from '@nestjs/throttler';
+
 import { AskHelpDto } from '../dto/ask-help.dto';
+import { EmbedChunksDto } from '../dto/embed-chunks.dto';
+import { IngestDocumentsDto } from '../dto/ingest-documents.dto';
+import { SearchAiHelpDto } from '../dto/search-ai-help.dto';
+
 import { KnowledgeIngestionService } from '../services/knowledge-ingestion.service';
 import { KnowledgeQueryService } from '../services/knowledge-query.service';
 import { KnowledgeEmbeddingService } from '../services/knowledge-embedding.service';
 import { VectorSearchService } from '../services/vector-search.service';
 import { HelpChatService } from '../services/help-chat.service';
+import { AiHelpAdminGuard } from '../guards/ai-help-admin.guard';
 
 @UseGuards(AuthGuard())
 @Controller('ai-help')
@@ -23,9 +38,24 @@ export class AiHelpController {
     return this.knowledgeIngestionService.readMarkdownFiles();
   }
 
-  @Get('ingest')
-  async ingestDocuments() {
-    return this.knowledgeIngestionService.ingestDocuments();
+  @Post('ingest')
+  @UseGuards(AiHelpAdminGuard)
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async ingestDocuments(@Body() dto: IngestDocumentsDto) {
+    // Confirmación explícita para evitar ejecuciones accidentales
+    if (!dto.confirm) {
+      return {
+        ok: false,
+        message: 'Debes enviar { "confirm": true } para ejecutar la ingesta.',
+      };
+    }
+
+    const result = await this.knowledgeIngestionService.ingestDocuments();
+    return {
+      ok: true,
+      action: 'ingest',
+      ...result,
+    };
   }
 
   @Get('documents')
@@ -38,17 +68,36 @@ export class AiHelpController {
     return this.knowledgeQueryService.getChunksByDocumentSlug(slug);
   }
 
-  @Get('embed')
-  async embedAllChunks() {
-    return this.knowledgeEmbeddingService.embedAllChunks();
+  @Post('embed')
+  @UseGuards(AiHelpAdminGuard)
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  async embedAllChunks(@Body() dto: EmbedChunksDto) {
+    if (!dto.confirm) {
+      return {
+        ok: false,
+        message: 'Debes enviar { "confirm": true } para ejecutar embeddings.',
+      };
+    }
+
+    const result = await this.knowledgeEmbeddingService.embedAllChunks();
+    return {
+      ok: true,
+      action: 'embed',
+      ...result,
+    };
   }
 
   @Get('search')
-  async search(@Query('query') query: string) {
-    return this.vectorSearchService.searchSimilarChunks(query);
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async search(@Query() queryDto: SearchAiHelpDto) {
+    return this.vectorSearchService.searchSimilarChunks(
+      queryDto.query,
+      queryDto.limit ?? 5,
+    );
   }
 
   @Post('chat')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async chat(@Body() askHelpDto: AskHelpDto) {
     return this.helpChatService.ask(askHelpDto.question);
   }

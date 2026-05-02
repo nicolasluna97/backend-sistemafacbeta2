@@ -1,46 +1,34 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as sgMail from '@sendgrid/mail';
 
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
 
-  constructor(private readonly configService: ConfigService) {
-    const apiKey = this.configService.get<string>('SENDGRID_API_KEY');
-    if (apiKey) {
-      sgMail.setApiKey(apiKey);
-    } else {
-      this.logger.error('SENDGRID_API_KEY no está configurado');
-    }
-  }
+  constructor(private readonly configService: ConfigService) {}
 
   async sendVerificationCode(email: string, code: string) {
-    const fromEmail = this.configService.get<string>('SENDGRID_FROM_EMAIL');
-    const fromName = this.configService.get<string>('SENDGRID_FROM_NAME') || 'Administrador';
+    // MODO DESARROLLO: Loguea el código en consola en lugar de enviarlo por email
+    const isDevelopment = process.env.NODE_ENV !== 'production';
 
-    const msg = {
-      to: email,
-      from: {
-        email: fromEmail,
-        name: fromName,
-      },
-      subject: 'Tu código de verificación',
-      text: `Tu código de verificación es: ${code}`,
-      html: `
-        <h2>Verificación de cuenta</h2>
-        <p>Tu código de verificación es:</p>
-        <h1 style="font-size: 32px; letter-spacing: 4px;">${code}</h1>
-        <p>Este código vence en 15 minutos.</p>
-      `,
-    };
+    if (isDevelopment) {
+      // Esto aparecerá en la terminal donde corre el backend
+      console.log('\n');
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║          📧 EMAIL DE VERIFICACIÓN (MODO DESARROLLO)        ║');
+      console.log('╚════════════════════════════════════════════════════════════╝');
+      console.log(`\n📧 Para:     ${email}`);
+      console.log(`🔐 Código:   ${code}`);
+      console.log(`⏱️  Válido:   15 minutos`);
+      console.log('\n💡 Copia el código arriba y pégalo en la aplicación\n');
+      console.log('╔════════════════════════════════════════════════════════════╗\n');
 
-    try {
-      await sgMail.send(msg);
-      this.logger.log(`Código enviado a ${email}`);
-    } catch (error) {
-      this.logger.error('Error enviando email', error);
-      throw new Error('No se pudo enviar el email');
+      this.logger.log(`✅ Código de verificación para ${email}: ${code}`);
+      return;
     }
+
+    // PRODUCCIÓN: Aquí iría el código para enviar emails reales
+    this.logger.error('Email service no configurado para producción');
+    throw new Error('Email service no disponible en este entorno');
   }
 }
